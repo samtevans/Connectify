@@ -8,7 +8,7 @@
   }
 
   body {
-    background-color: #faf6ee;
+    background-color: #fdf8f0; /* cream-100 */
     @apply text-slate-900 antialiased;
   }
 
@@ -28,8 +28,8 @@
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-slate-600 font-medium rounded-lg transition-all duration-150 focus:outline-none;
-    &:hover { background-color: #f3ebe0; }
-    &:active { background-color: #e8ddd0; }
+    &:hover  { background-color: #f5ebda; } /* cream-200 */
+    &:active { background-color: #eaddc5; } /* cream-300 */
   }
 
   .input-field {

@@ -46,7 +46,7 @@ export default function Navbar() {
           <Link href="/login" className="btn-ghost text-sm">
             Sign in
           </Link>
-          <Link href="/signup" className="btn-primary text-sm py-2">
+          <Link href="/match" className="btn-primary text-sm py-2">
             Get matched free
           </Link>
         </div>
@@ -86,7 +86,7 @@ export default function Navbar() {
             Sign in
           </Link>
           <Link
-            href="/signup"
+            href="/match"
             className="btn-primary w-full justify-center mt-1"
             onClick={() => setOpen(false)}
           >

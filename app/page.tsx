@@ -228,7 +228,7 @@ export default function LandingPage() {
           </div>
 
           <div className="text-center mt-10">
-            <Link href="/signup" className="btn-primary">
+            <Link href="/match" className="btn-primary">
               Get started free
               <ArrowRight size={16} />
             </Link>
