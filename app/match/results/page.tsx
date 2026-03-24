@@ -142,9 +142,13 @@ export default function ResultsPage() {
 
   const { accountant, breakdown, distanceMiles } = result;
   const explanations = generateExplanations(result, answers);
-  const ruleScore = breakdown.total;
-  const totalScore = ruleScore + (aiStatus === "success" ? aiScore : 0);
-  const maxScore = aiStatus === "none" ? 100 : 130;
+  const ruleScore = breakdown.total; // out of 75
+  const hasAi = answers.freeText?.trim();
+  // Without AI: scale rule-based (out of 75) proportionally to 100
+  // With AI: rule score (75) + AI score (25) = 100
+  const displayScore = hasAi
+    ? (aiStatus === "success" ? ruleScore + aiScore : ruleScore)
+    : Math.round((ruleScore / 75) * 100);
   const initials = accountant.name
     .split(" ")
     .map((n) => n[0])
@@ -217,11 +221,11 @@ export default function ResultsPage() {
 
               {/* Match score badge */}
               <div className="flex flex-col items-end">
-                <div className="text-4xl font-black text-brand-600 leading-none tabular-nums">
-                  {totalScore}
-                  <span className="text-xl text-brand-400"> / {maxScore}</span>
+                <div className="text-4xl font-black text-white leading-none tabular-nums drop-shadow-sm">
+                  {displayScore}
+                  <span className="text-xl text-cream-200"> / 100</span>
                 </div>
-                <div className="text-xs text-slate-400 font-medium mt-0.5">
+                <div className="text-xs text-cream-300 font-medium mt-0.5">
                   match score
                 </div>
               </div>
@@ -298,11 +302,13 @@ export default function ResultsPage() {
             ))}
           </div>
 
-          {/* Rule-based total */}
+          {/* Rule-based subtotal */}
           <div className="mt-6 pt-5 border-t border-cream-300 flex items-center justify-between">
-            <span className="font-bold text-slate-900">Rule-based score</span>
+            <span className="font-bold text-slate-900">
+              {hasAi ? "Rule-based score" : "Total match score"}
+            </span>
             <span className="text-2xl font-black text-brand-600 tabular-nums">
-              {ruleScore} / 100
+              {hasAi ? `${ruleScore} / 75` : `${displayScore} / 100`}
             </span>
           </div>
 
@@ -321,7 +327,7 @@ export default function ResultsPage() {
                 )}
                 {aiStatus === "success" && (
                   <span className="ml-auto text-sm font-black text-brand-600 tabular-nums">
-                    {aiScore} / 30
+                    {aiScore} / 25
                   </span>
                 )}
               </div>
@@ -337,7 +343,7 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {/* Grand total */}
+          {/* Grand total (only shown when AI review completes) */}
           {aiStatus === "success" && (
             <div
               className={`mt-4 pt-4 border-t border-cream-300 flex items-center justify-between transition-opacity duration-1000 ${
@@ -346,7 +352,7 @@ export default function ResultsPage() {
             >
               <span className="font-bold text-slate-900">Total score</span>
               <span className="text-2xl font-black text-brand-600 tabular-nums">
-                {totalScore} / 130
+                {displayScore} / 100
               </span>
             </div>
           )}

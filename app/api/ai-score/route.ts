@@ -39,10 +39,10 @@ Meeting style: ${MEETING_LABELS[accountant.meetingPreference]}
 Welsh speaker: ${accountant.welshSpeaker ? "Yes" : "No"}
 Bio: ${accountant.bio}
 
-Based on the business owner's specific situation, score how well this accountant suits them out of 30. Consider any specific needs, challenges, or context mentioned that the rule-based matching might miss.
+Based on the business owner's specific situation, score how well this accountant suits them out of 25. Consider any specific needs, challenges, or context mentioned that the rule-based matching might miss.
 
 Respond in this exact JSON format (no other text):
-{"score": <integer 0-30>, "explanation": "<one concise sentence explaining the key reason for this score>"}`;
+{"score": <integer 0-25>, "explanation": "<one concise sentence explaining the key reason for this score>"}`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -53,7 +53,7 @@ Respond in this exact JSON format (no other text):
     const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
     const parsed = JSON.parse(text);
 
-    const score = Math.min(30, Math.max(0, Math.round(Number(parsed.score))));
+    const score = Math.min(25, Math.max(0, Math.round(Number(parsed.score))));
     const explanation = String(parsed.explanation);
 
     return NextResponse.json({ score, explanation });

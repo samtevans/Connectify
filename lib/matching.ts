@@ -28,14 +28,14 @@ export interface MatchAnswers {
 }
 
 export interface ScoreBreakdown {
-  location: number;           // max 20
-  meetingPreference: number;  // max 15
-  services: number;           // max 25
-  businessType: number;       // max 15
-  turnoverRange: number;      // max 10
-  feePreference: number;      // max 10
-  welshLanguage: number;      // max 5
-  total: number;              // max 100
+  location: number;           // max 14
+  meetingPreference: number;  // max 11
+  services: number;           // max 20
+  businessType: number;       // max 12
+  turnoverRange: number;      // max 8
+  feePreference: number;      // max 6
+  welshLanguage: number;      // max 4
+  total: number;              // max 75 (rule-based); +25 AI = 100
 }
 
 export interface MatchResult {
@@ -102,61 +102,61 @@ function scoreAccountant(
 
   let distanceMiles: number | null = null;
 
-  // ── 1. Location (20 pts) ─────────────────────────────────────────────────
+  // ── 1. Location (14 pts) ─────────────────────────────────────────────────
   // Fully remote users get full location marks — distance is irrelevant.
   if (answers.meetingPreference === "remote") {
-    b.location = 20;
+    b.location = 14;
   } else if (answers.coordinates) {
     distanceMiles = haversineMiles(
       answers.coordinates.lat, answers.coordinates.lng,
       accountant.coordinates.lat, accountant.coordinates.lng
     );
-    if (distanceMiles <= 5)       b.location = 20;
-    else if (distanceMiles <= 10) b.location = 16;
-    else if (distanceMiles <= 20) b.location = 12;
-    else if (distanceMiles <= 30) b.location = 8;
-    else if (distanceMiles <= 40) b.location = 4;
+    if (distanceMiles <= 5)       b.location = 14;
+    else if (distanceMiles <= 10) b.location = 11;
+    else if (distanceMiles <= 20) b.location = 8;
+    else if (distanceMiles <= 30) b.location = 6;
+    else if (distanceMiles <= 40) b.location = 3;
     else                           b.location = 0;
   } else {
-    // postcodes.io lookup failed — award neutral 10/20
-    b.location = 10;
+    // postcodes.io lookup failed — award neutral 7/14
+    b.location = 7;
   }
 
-  // ── 2. Meeting preference (15 pts) ───────────────────────────────────────
+  // ── 2. Meeting preference (11 pts) ───────────────────────────────────────
   const up = answers.meetingPreference;
   const ap = accountant.meetingPreference;
   if (up === "no-preference" || ap === "no-preference" || up === ap) {
-    b.meetingPreference = 15;
+    b.meetingPreference = 11;
   } else {
     b.meetingPreference = 0;
   }
 
-  // ── 3. Services (25 pts) ─────────────────────────────────────────────────
+  // ── 3. Services (20 pts) ─────────────────────────────────────────────────
   let coveragePercent = 0;
   const needed = answers.servicesNeeded;
   if (needed.length > 0) {
     const covered = needed.filter((s) => accountant.services.includes(s)).length;
     coveragePercent = covered / needed.length;
   }
-  if (coveragePercent >= 1)         b.services = 25;
-  else if (coveragePercent >= 0.75) b.services = 18;
-  else if (coveragePercent >= 0.5)  b.services = 12;
-  else if (coveragePercent >= 0.25) b.services = 6;
+  if (coveragePercent >= 1)         b.services = 20;
+  else if (coveragePercent >= 0.75) b.services = 14;
+  else if (coveragePercent >= 0.5)  b.services = 10;
+  else if (coveragePercent >= 0.25) b.services = 5;
   else                               b.services = 0;
 
-  // ── 4. Business type (15 pts) ────────────────────────────────────────────
+  // ── 4. Business type (12 pts) ────────────────────────────────────────────
   if (accountant.businessTypes.includes(answers.businessType)) {
-    b.businessType = 15;
+    b.businessType = 12;
   } else {
     const related = RELATED_TYPES[answers.businessType] ?? [];
     if (accountant.businessTypes.some((t) => related.includes(t))) {
-      b.businessType = 8;
+      b.businessType = 6;
     }
   }
 
-  // ── 5. Turnover range (10 pts) ───────────────────────────────────────────
+  // ── 5. Turnover range (8 pts) ────────────────────────────────────────────
   if (accountant.turnoverRanges.includes(answers.turnoverRange)) {
-    b.turnoverRange = 10;
+    b.turnoverRange = 8;
   } else {
     const idx = TURNOVER_ORDER.indexOf(answers.turnoverRange);
     const adjacent = [
@@ -164,23 +164,23 @@ function scoreAccountant(
       TURNOVER_ORDER[idx + 1],
     ].filter(Boolean) as TurnoverRange[];
     if (accountant.turnoverRanges.some((r) => adjacent.includes(r))) {
-      b.turnoverRange = 5;
+      b.turnoverRange = 4;
     }
   }
 
-  // ── 6. Fee preference (10 pts) ───────────────────────────────────────────
+  // ── 6. Fee preference (6 pts) ────────────────────────────────────────────
   if (answers.feePreference === accountant.feeStructure) {
-    b.feePreference = 10;
+    b.feePreference = 6;
   } else if (
     answers.feePreference === "no-preference" ||
     accountant.feeStructure === "no-preference"
   ) {
-    b.feePreference = 5;
+    b.feePreference = 3;
   }
 
-  // ── 7. Welsh language (5 pts) ────────────────────────────────────────────
+  // ── 7. Welsh language (4 pts) ────────────────────────────────────────────
   if (answers.welshLanguage === "yes" && accountant.welshSpeaker) {
-    b.welshLanguage = 5;
+    b.welshLanguage = 4;
   }
 
   const total =
@@ -202,7 +202,7 @@ function scoreAccountant(
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export const MATCH_THRESHOLD = 30;
+export const MATCH_THRESHOLD = 22;
 
 /** Returns the single highest-scoring accountant, or null if none clears the threshold. */
 export function findBestMatch(answers: MatchAnswers): MatchResult | null {
@@ -259,23 +259,23 @@ export function generateExplanations(
       text = `${firstName} is based in ${accountant.city}, ${d} miles from you — within reasonable travelling distance.`;
     else
       text = `${firstName} is based in ${accountant.city}, ${d} miles away. Distance is a factor, but their other qualities make them a strong candidate.`;
-    items.push({ factor: "Location", earned: breakdown.location, max: 20, text });
+    items.push({ factor: "Location", earned: breakdown.location, max: 14, text });
   } else {
     items.push({
       factor: "Location",
       earned: breakdown.location,
-      max: 20,
+      max: 14,
       text: `${firstName} is based in ${accountant.city}. We couldn't verify your postcode's exact coordinates, so a neutral score was applied here.`,
     });
   }
 
   // Meeting preference
   const prefLabel = MEETING_LABELS[accountant.meetingPreference].toLowerCase();
-  if (breakdown.meetingPreference === 15) {
+  if (breakdown.meetingPreference === 11) {
     items.push({
       factor: "How you'll meet",
-      earned: 15,
-      max: 15,
+      earned: 11,
+      max: 11,
       text:
         accountant.meetingPreference === "no-preference"
           ? `${firstName} is happy to work either in person or remotely — perfectly flexible for you.`
@@ -285,7 +285,7 @@ export function generateExplanations(
     items.push({
       factor: "How you'll meet",
       earned: 0,
-      max: 15,
+      max: 11,
       text: `${firstName} generally prefers ${prefLabel} meetings, which differs from what you're looking for. This is reflected in the score.`,
     });
   }
@@ -304,96 +304,96 @@ export function generateExplanations(
   } else {
     serviceText = `${firstName}'s service range has limited overlap with what you need — worth a conversation to confirm.`;
   }
-  items.push({ factor: "Services covered", earned: breakdown.services, max: 25, text: serviceText });
+  items.push({ factor: "Services covered", earned: breakdown.services, max: 20, text: serviceText });
 
   // Business type
   const btLabel = BUSINESS_TYPE_LABELS[answers.businessType].toLowerCase();
-  if (breakdown.businessType === 15) {
+  if (breakdown.businessType === 12) {
     items.push({
       factor: "Business type",
-      earned: 15,
-      max: 15,
+      earned: 12,
+      max: 12,
       text: `${firstName} specialises in working with ${btLabel}s — exactly your business structure.`,
     });
-  } else if (breakdown.businessType === 8) {
+  } else if (breakdown.businessType === 6) {
     items.push({
       factor: "Business type",
-      earned: 8,
-      max: 15,
+      earned: 6,
+      max: 12,
       text: `${firstName} has experience with similar business structures to yours, even if your exact type isn't their primary specialism.`,
     });
   } else {
     items.push({
       factor: "Business type",
       earned: 0,
-      max: 15,
+      max: 12,
       text: `${firstName} is less focused on ${btLabel}s specifically, though they may still be able to help — ask during your consultation.`,
     });
   }
 
   // Turnover
   const trLabel = TURNOVER_LABELS[answers.turnoverRange];
-  if (breakdown.turnoverRange === 10) {
+  if (breakdown.turnoverRange === 8) {
     items.push({
       factor: "Turnover range",
-      earned: 10,
-      max: 10,
+      earned: 8,
+      max: 8,
       text: `${firstName} regularly works with businesses in your turnover range (${trLabel}).`,
     });
-  } else if (breakdown.turnoverRange === 5) {
+  } else if (breakdown.turnoverRange === 4) {
     items.push({
       factor: "Turnover range",
-      earned: 5,
-      max: 10,
+      earned: 4,
+      max: 8,
       text: `${firstName} typically works with businesses in an adjacent turnover bracket — your size is within range.`,
     });
   } else {
     items.push({
       factor: "Turnover range",
       earned: 0,
-      max: 10,
+      max: 8,
       text: `${firstName} usually works with businesses outside your current turnover range, which may affect the level of service offered.`,
     });
   }
 
   // Fee preference
-  if (breakdown.feePreference === 10) {
+  if (breakdown.feePreference === 6) {
     items.push({
       factor: "Fee structure",
-      earned: 10,
-      max: 10,
+      earned: 6,
+      max: 6,
       text: `${firstName} offers a ${accountant.feeStructure === "fixed-monthly" ? "fixed monthly fee" : "pay-per-service arrangement"} — exactly what you're looking for.`,
     });
-  } else if (breakdown.feePreference === 5) {
+  } else if (breakdown.feePreference === 3) {
     items.push({
       factor: "Fee structure",
-      earned: 5,
-      max: 10,
+      earned: 3,
+      max: 6,
       text: `${firstName} has flexibility on fee arrangements, which can work around your preference.`,
     });
   } else {
     items.push({
       factor: "Fee structure",
       earned: 0,
-      max: 10,
+      max: 6,
       text: `${firstName}'s standard fee structure differs from your preference, but it's always worth discussing alternatives.`,
     });
   }
 
   // Welsh language (only show if user requested it)
   if (answers.welshLanguage === "yes") {
-    if (breakdown.welshLanguage === 5) {
+    if (breakdown.welshLanguage === 4) {
       items.push({
         factor: "Welsh language",
-        earned: 5,
-        max: 5,
+        earned: 4,
+        max: 4,
         text: `${firstName} is a Welsh speaker — you noted this as important, and it's a great fit.`,
       });
     } else {
       items.push({
         factor: "Welsh language",
         earned: 0,
-        max: 5,
+        max: 4,
         text: `${firstName} doesn't offer Welsh-language services, which you indicated was a preference.`,
       });
     }
