@@ -9,8 +9,10 @@ import {
   BadgeCheck,
   Calendar,
   CheckCircle,
+  Loader2,
   MapPin,
   RotateCcw,
+  Sparkles,
   Star,
 } from "lucide-react";
 import {
@@ -68,11 +70,18 @@ function ScoreBar({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+type AiStatus = "none" | "loading" | "success" | "error";
+
 export default function ResultsPage() {
   const router = useRouter();
   const [result, setResult] = useState<MatchResult | null>(null);
   const [answers, setAnswers] = useState<MatchAnswers | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [aiScore, setAiScore] = useState(0);
+  const [aiExplanation, setAiExplanation] = useState("");
+  const [aiStatus, setAiStatus] = useState<AiStatus>("none");
+  const [aiVisible, setAiVisible] = useState(false);
 
   useEffect(() => {
     const rawResult = sessionStorage.getItem("connectify_match_result");
@@ -83,15 +92,44 @@ export default function ResultsPage() {
       return;
     }
 
+    let parsedResult: MatchResult;
+    let parsedAnswers: MatchAnswers;
     try {
-      setResult(JSON.parse(rawResult) as MatchResult);
-      setAnswers(JSON.parse(rawAnswers) as MatchAnswers);
+      parsedResult = JSON.parse(rawResult) as MatchResult;
+      parsedAnswers = JSON.parse(rawAnswers) as MatchAnswers;
     } catch {
       router.replace("/match");
       return;
     }
 
+    setResult(parsedResult);
+    setAnswers(parsedAnswers);
     setLoading(false);
+
+    // Trigger AI review if freeText was provided
+    if (parsedAnswers.freeText?.trim()) {
+      setAiStatus("loading");
+      fetch("/api/ai-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          freeText: parsedAnswers.freeText,
+          accountantId: parsedResult.accountant.id,
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          setAiScore(data.score ?? 0);
+          setAiExplanation(data.explanation ?? "AI review unavailable.");
+          setAiStatus("success");
+          // Small delay so the element is rendered before we fade it in
+          setTimeout(() => setAiVisible(true), 50);
+        })
+        .catch(() => {
+          setAiStatus("error");
+          setTimeout(() => setAiVisible(true), 50);
+        });
+    }
   }, [router]);
 
   if (loading || !result || !answers) {
@@ -104,7 +142,9 @@ export default function ResultsPage() {
 
   const { accountant, breakdown, distanceMiles } = result;
   const explanations = generateExplanations(result, answers);
-  const matchPct = breakdown.total;
+  const ruleScore = breakdown.total;
+  const totalScore = ruleScore + (aiStatus === "success" ? aiScore : 0);
+  const maxScore = aiStatus === "none" ? 100 : 130;
   const initials = accountant.name
     .split(" ")
     .map((n) => n[0])
@@ -177,9 +217,9 @@ export default function ResultsPage() {
 
               {/* Match score badge */}
               <div className="flex flex-col items-end">
-                <div className="text-4xl font-black text-brand-600 leading-none">
-                  {matchPct}
-                  <span className="text-2xl text-brand-400">%</span>
+                <div className="text-4xl font-black text-brand-600 leading-none tabular-nums">
+                  {totalScore}
+                  <span className="text-xl text-brand-400"> / {maxScore}</span>
                 </div>
                 <div className="text-xs text-slate-400 font-medium mt-0.5">
                   match score
@@ -258,13 +298,58 @@ export default function ResultsPage() {
             ))}
           </div>
 
-          {/* Total */}
+          {/* Rule-based total */}
           <div className="mt-6 pt-5 border-t border-cream-300 flex items-center justify-between">
-            <span className="font-bold text-slate-900">Total match score</span>
+            <span className="font-bold text-slate-900">Rule-based score</span>
             <span className="text-2xl font-black text-brand-600 tabular-nums">
-              {matchPct} / 100
+              {ruleScore} / 100
             </span>
           </div>
+
+          {/* AI review section */}
+          {aiStatus !== "none" && (
+            <div
+              className={`mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4 transition-opacity duration-1000 ${
+                aiVisible ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={15} className="text-brand-600 shrink-0" />
+                <span className="text-sm font-bold text-brand-700">AI review</span>
+                {aiStatus === "loading" && (
+                  <Loader2 size={13} className="animate-spin text-brand-500 ml-auto" />
+                )}
+                {aiStatus === "success" && (
+                  <span className="ml-auto text-sm font-black text-brand-600 tabular-nums">
+                    {aiScore} / 30
+                  </span>
+                )}
+              </div>
+              {aiStatus === "loading" && (
+                <p className="text-xs text-slate-500">Reviewing your situation…</p>
+              )}
+              {aiStatus === "success" && (
+                <p className="text-xs text-slate-600 leading-relaxed">{aiExplanation}</p>
+              )}
+              {aiStatus === "error" && (
+                <p className="text-xs text-slate-500">AI review unavailable.</p>
+              )}
+            </div>
+          )}
+
+          {/* Grand total */}
+          {aiStatus === "success" && (
+            <div
+              className={`mt-4 pt-4 border-t border-cream-300 flex items-center justify-between transition-opacity duration-1000 ${
+                aiVisible ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <span className="font-bold text-slate-900">Total score</span>
+              <span className="text-2xl font-black text-brand-600 tabular-nums">
+                {totalScore} / 130
+              </span>
+            </div>
+          )}
         </div>
 
         {/* About */}

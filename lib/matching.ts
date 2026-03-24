@@ -24,6 +24,7 @@ export interface MatchAnswers {
   feePreference: FeeStructure;
   welshLanguage: "yes" | "no" | "no-preference";
   urgency: "immediately" | "within-a-month" | "just-exploring";
+  freeText?: string;
 }
 
 export interface ScoreBreakdown {
@@ -114,7 +115,7 @@ function scoreAccountant(
     else if (distanceMiles <= 10) b.location = 16;
     else if (distanceMiles <= 20) b.location = 12;
     else if (distanceMiles <= 30) b.location = 8;
-    else if (distanceMiles <= 50) b.location = 4;
+    else if (distanceMiles <= 40) b.location = 4;
     else                           b.location = 0;
   } else {
     // postcodes.io lookup failed — award neutral 10/20
@@ -205,7 +206,22 @@ export const MATCH_THRESHOLD = 30;
 
 /** Returns the single highest-scoring accountant, or null if none clears the threshold. */
 export function findBestMatch(answers: MatchAnswers): MatchResult | null {
-  const scored = accountants
+  let candidates = accountants;
+
+  // Disqualify in-person accountants over 40 miles away
+  if (answers.meetingPreference === "in-person" && answers.coordinates) {
+    candidates = candidates.filter((a) => {
+      const dist = haversineMiles(
+        answers.coordinates!.lat, answers.coordinates!.lng,
+        a.coordinates.lat, a.coordinates.lng
+      );
+      return dist <= 40;
+    });
+  }
+
+  if (candidates.length === 0) return null;
+
+  const scored = candidates
     .map((a) => scoreAccountant(a, answers))
     .sort((a, b) => b.breakdown.total - a.breakdown.total);
 

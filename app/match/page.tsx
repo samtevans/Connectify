@@ -15,7 +15,7 @@ import { findBestMatch, type MatchAnswers } from "@/lib/matching";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 const STEP_TITLES = [
   "Where is your business based?",
@@ -26,6 +26,7 @@ const STEP_TITLES = [
   "How would you prefer to pay?",
   "Is Welsh language service important?",
   "How soon do you need an accountant?",
+  "Tell us a bit more (optional)",
 ];
 
 const SERVICES: { id: ServiceId; emoji: string }[] = [
@@ -149,6 +150,7 @@ export default function MatchPage() {
   const [feePref, setFeePref] = useState("");
   const [welshLang, setWelshLang] = useState("");
   const [urgency, setUrgency] = useState("");
+  const [freeText, setFreeText] = useState("");
 
   // Postcode lookup loading state
   const [postcodeLoading, setPostcodeLoading] = useState(false);
@@ -164,6 +166,7 @@ export default function MatchPage() {
       case 6: return !!feePref;
       case 7: return !!welshLang;
       case 8: return !!urgency;
+      case 9: return true; // optional
       default: return false;
     }
   }
@@ -210,6 +213,7 @@ export default function MatchPage() {
         feePreference: feePref as MatchAnswers["feePreference"],
         welshLanguage: welshLang as MatchAnswers["welshLanguage"],
         urgency: urgency as MatchAnswers["urgency"],
+        freeText: freeText.trim() || undefined,
       };
 
       const result = findBestMatch(answers);
@@ -524,6 +528,24 @@ export default function MatchPage() {
                 emoji={opt.emoji}
               />
             ))}
+          </div>
+        );
+
+      // ── Step 9: Free text (optional AI review) ───────────────────────────
+      case 9:
+        return (
+          <div className="flex flex-col gap-3">
+            <textarea
+              value={freeText}
+              onChange={(e) => setFreeText(e.target.value)}
+              placeholder="e.g. I just registered as a limited company and need help with my first year end accounts and VAT"
+              rows={5}
+              className="input-field resize-none leading-relaxed"
+              autoFocus
+            />
+            <p className="text-xs text-slate-400 text-center leading-relaxed">
+              This is optional. If you add a note, our AI will review your situation and add a personalised score to your match result.
+            </p>
           </div>
         );
 
