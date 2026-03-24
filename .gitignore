@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Data (waitlist emails — don't commit to version control)
+data/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Claude settings
+.claude/
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
