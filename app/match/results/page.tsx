@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowRight,
   BadgeCheck,
   Calendar,
@@ -39,8 +38,8 @@ function ScoreBar({
   label: string;
   text: string;
 }) {
-  const pct = Math.round((earned / max) * 100);
-  const color =
+  const pct = Math.min(100, Math.round((earned / max) * 100));
+  const barColor =
     pct >= 80
       ? "bg-brand-500"
       : pct >= 50
@@ -52,14 +51,19 @@ function ScoreBar({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-semibold text-slate-800">{label}</span>
-        <span className="text-slate-500 font-medium tabular-nums">
-          {earned} / {max} pts
+        <span className="font-semibold" style={{ color: "#000000" }}>
+          {label}
+        </span>
+        <span
+          className="font-black tabular-nums"
+          style={{ color: "#000000" }}
+        >
+          {earned} / {max}
         </span>
       </div>
       <div className="h-2 bg-cream-200 rounded-full overflow-hidden">
         <div
-          className={`h-full ${color} rounded-full transition-all duration-700`}
+          className={`h-full ${barColor} rounded-full transition-all duration-700`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -106,7 +110,6 @@ export default function ResultsPage() {
     setAnswers(parsedAnswers);
     setLoading(false);
 
-    // Trigger AI review if freeText was provided
     if (parsedAnswers.freeText?.trim()) {
       setAiStatus("loading");
       fetch("/api/ai-score", {
@@ -119,13 +122,13 @@ export default function ResultsPage() {
       })
         .then((r) => r.json())
         .then((data) => {
-          setAiScore(data.score ?? 0);
+          setAiScore(Math.min(25, Math.max(0, data.score ?? 0)));
           setAiExplanation(data.explanation ?? "AI review unavailable.");
           setAiStatus("success");
-          // Small delay so the element is rendered before we fade it in
           setTimeout(() => setAiVisible(true), 50);
         })
         .catch(() => {
+          setAiScore(0);
           setAiStatus("error");
           setTimeout(() => setAiVisible(true), 50);
         });
@@ -142,13 +145,13 @@ export default function ResultsPage() {
 
   const { accountant, breakdown, distanceMiles } = result;
   const explanations = generateExplanations(result, answers);
-  const ruleScore = breakdown.total; // out of 75
-  const hasAi = answers.freeText?.trim();
-  // Without AI: scale rule-based (out of 75) proportionally to 100
-  // With AI: rule score (75) + AI score (25) = 100
-  const displayScore = hasAi
-    ? (aiStatus === "success" ? ruleScore + aiScore : ruleScore)
-    : Math.round((ruleScore / 75) * 100);
+
+  // Rule-based is always out of 75; AI adds up to 25; grand total out of 100
+  const ruleScore = Math.min(75, breakdown.total);
+  const clampedAiScore = Math.min(25, aiScore);
+  const grandTotal = Math.min(100, ruleScore + (aiStatus === "success" ? clampedAiScore : 0));
+
+  const hasAi = !!answers.freeText?.trim();
   const initials = accountant.name
     .split(" ")
     .map((n) => n[0])
@@ -205,7 +208,7 @@ export default function ResultsPage() {
           <div className="h-16 bg-gradient-to-r from-brand-600 to-brand-500" />
 
           <div className="px-6 pb-6">
-            {/* Avatar row */}
+            {/* Avatar + score circle row */}
             <div className="flex items-end justify-between -mt-8 mb-5">
               {/* Avatar */}
               <div className="relative">
@@ -219,13 +222,28 @@ export default function ResultsPage() {
                 </span>
               </div>
 
-              {/* Match score badge */}
-              <div className="flex flex-col items-end">
-                <div className="text-4xl font-black text-white leading-none tabular-nums drop-shadow-sm">
-                  {displayScore}
-                  <span className="text-xl text-cream-200"> / 100</span>
+              {/* Score circle */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-20 h-20 rounded-full bg-white border-4 border-brand-400 shadow flex items-center justify-center">
+                  <div className="text-center leading-none">
+                    <div
+                      className="text-2xl font-black tabular-nums"
+                      style={{ color: "#000000" }}
+                    >
+                      {grandTotal}
+                    </div>
+                    <div
+                      className="text-[11px] font-bold mt-0.5"
+                      style={{ color: "#000000" }}
+                    >
+                      / 100
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs text-cream-300 font-medium mt-0.5">
+                <div
+                  className="text-[11px] font-semibold"
+                  style={{ color: "#000000" }}
+                >
                   match score
                 </div>
               </div>
@@ -289,6 +307,8 @@ export default function ResultsPage() {
           <h3 className="text-lg font-bold text-slate-900 mb-5">
             Why we matched you
           </h3>
+
+          {/* Factor breakdown */}
           <div className="flex flex-col gap-6 divide-y divide-cream-200">
             {explanations.map((item, i) => (
               <div key={item.factor} className={i > 0 ? "pt-5" : ""}>
@@ -304,15 +324,18 @@ export default function ResultsPage() {
 
           {/* Rule-based subtotal */}
           <div className="mt-6 pt-5 border-t border-cream-300 flex items-center justify-between">
-            <span className="font-bold text-slate-900">
-              {hasAi ? "Rule-based score" : "Total match score"}
+            <span className="font-semibold text-slate-700">
+              Rule-based score
             </span>
-            <span className="text-2xl font-black text-brand-600 tabular-nums">
-              {hasAi ? `${ruleScore} / 75` : `${displayScore} / 100`}
+            <span
+              className="text-xl font-black tabular-nums"
+              style={{ color: "#000000" }}
+            >
+              {ruleScore} / 75
             </span>
           </div>
 
-          {/* AI review section */}
+          {/* AI review */}
           {aiStatus !== "none" && (
             <div
               className={`mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4 transition-opacity duration-1000 ${
@@ -325,9 +348,12 @@ export default function ResultsPage() {
                 {aiStatus === "loading" && (
                   <Loader2 size={13} className="animate-spin text-brand-500 ml-auto" />
                 )}
-                {aiStatus === "success" && (
-                  <span className="ml-auto text-sm font-black text-brand-600 tabular-nums">
-                    {aiScore} / 25
+                {(aiStatus === "success" || aiStatus === "error") && (
+                  <span
+                    className="ml-auto text-sm font-black tabular-nums"
+                    style={{ color: "#000000" }}
+                  >
+                    {clampedAiScore} / 25
                   </span>
                 )}
               </div>
@@ -335,7 +361,9 @@ export default function ResultsPage() {
                 <p className="text-xs text-slate-500">Reviewing your situation…</p>
               )}
               {aiStatus === "success" && (
-                <p className="text-xs text-slate-600 leading-relaxed">{aiExplanation}</p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {aiExplanation}
+                </p>
               )}
               {aiStatus === "error" && (
                 <p className="text-xs text-slate-500">AI review unavailable.</p>
@@ -343,18 +371,28 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {/* Grand total (only shown when AI review completes) */}
-          {aiStatus === "success" && (
-            <div
-              className={`mt-4 pt-4 border-t border-cream-300 flex items-center justify-between transition-opacity duration-1000 ${
-                aiVisible ? "opacity-100" : "opacity-0"
-              }`}
+          {/* Grand total */}
+          <div
+            className={`mt-5 pt-5 border-t-2 border-slate-900 flex items-center justify-between ${
+              hasAi && aiStatus !== "success"
+                ? "opacity-50"
+                : ""
+            }`}
+          >
+            <span className="text-lg font-bold" style={{ color: "#000000" }}>
+              Grand total
+            </span>
+            <span
+              className="text-3xl font-black tabular-nums"
+              style={{ color: "#000000" }}
             >
-              <span className="font-bold text-slate-900">Total score</span>
-              <span className="text-2xl font-black text-brand-600 tabular-nums">
-                {displayScore} / 100
-              </span>
-            </div>
+              {grandTotal} / 100
+            </span>
+          </div>
+          {hasAi && aiStatus === "loading" && (
+            <p className="text-xs text-slate-400 mt-1 text-right">
+              (AI review in progress — total will update)
+            </p>
           )}
         </div>
 
@@ -432,7 +470,8 @@ export default function ResultsPage() {
             Ready to get started?
           </h3>
           <p className="text-brand-200 text-sm mb-5">
-            Book your free, no-obligation consultation with {accountant.name.split(" ")[0]} today.
+            Book your free, no-obligation consultation with{" "}
+            {accountant.name.split(" ")[0]} today.
           </p>
           <Link
             href={`/accountant/${accountant.id}`}
@@ -454,7 +493,10 @@ export default function ResultsPage() {
               Try the questionnaire again
             </button>{" "}
             or{" "}
-            <Link href="/signup" className="text-brand-600 font-semibold hover:text-brand-700">
+            <Link
+              href="/signup"
+              className="text-brand-600 font-semibold hover:text-brand-700"
+            >
               join our waitlist
             </Link>
             .
